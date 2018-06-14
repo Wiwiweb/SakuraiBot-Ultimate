@@ -1,5 +1,7 @@
 from collections import namedtuple
+from datetime import datetime
 
+import praw
 import requests
 from bs4 import BeautifulSoup
 
@@ -8,6 +10,9 @@ from globals import config, log, test_mode
 SMASH_BLOG_JSON = 'https://www.smashbros.com/data/bs/en_US/json/en_US.json'
 IMGUR_UPLOAD_API = 'https://api.imgur.com/3/image'
 IMGUR_CREATE_ALBUM_API = 'https://api.imgur.com/3/album'
+REDDIT_TITLE_LIMIT = 300
+
+USER_AGENT = "SakuraiBotUltimate by /u/Wiwiweb for /r/smashbros"
 
 Post = namedtuple('Post', 'title date text images link')
 
@@ -34,6 +39,8 @@ def get_all_blog_posts():
                 image_url = 'https://www.smashbros.com/{}'.format(image_url[7:])
                 images.append(image_url)
         link = post_json['acf']['link_url']
+        if link is '':
+            link = None
         posts[title] = Post(title=title, date=date, text=text, images=images, link=link)
     return posts
 
@@ -60,7 +67,11 @@ def upload_to_imgur(post):
     single_picture = len(post.images) == 1
     image_delete_hashes = []
     single_picture_url = None
-    headers = {'Authorization': 'Client-ID ' + config['Secrets']['imgur_client_id']}
+    if test_mode:
+        # Upload anonymously
+        headers = {'Authorization': 'Client-ID ' + config['Secrets']['imgur_client_id']}
+    else:
+        headers = {'Authorization': 'Bearer ' + config['Secrets']['imgur_access_token']}
 
     # Upload image(s)
     for image_url in post.images:
@@ -90,7 +101,49 @@ def upload_to_imgur(post):
 
 
 def post_to_reddit(post, url):
-    url
+    reddit_config = 'Reddit_test' if test_mode else 'Reddit'
+    reddit = praw.Reddit(client_id=config['Secrets']['reddit_client_id'],
+                         client_secret=config['Secrets']['reddit_client_secret'],
+                         username=config[reddit_config]['username'],
+                         password=config['Secrets']['reddit_password'],
+                         user_agent=USER_AGENT)
+
+    subreddit = reddit.subreddit(config[reddit_config]['subreddit'])
+
+    text = post.text
+    date = datetime.strptime(post.date, '%Y/%m/%d %H:%M:%S')
+    date_string = date.strftime('%m/%d')
+    title_format = "New Smash Blog Post! ({}) {}"
+    title = title_format.format(date_string, text)
+    text_too_long = False
+    if len(title) > REDDIT_TITLE_LIMIT:
+        too_long = ' [...]" (Text too long! See comment)'
+        # allowed_text_length =
+        # length of text - the number of chars we must remove
+        # - the length of the text we add at the end
+        allowed_text_length = \
+            len(text) \
+            - (len(title) - REDDIT_TITLE_LIMIT) \
+            - len(too_long)
+        while len(text) > allowed_text_length:
+            text = text.rsplit(' ', 1)[0] # Remove last word
+        text += too_long
+        title = title_format.format(date_string, text)
+        text_too_long = True
+
+    selftext = '' if url is None else None
+    submission = subreddit.submit(title=title, url=url, selftext=selftext)
+    log.info("Created reddit post: {}".format(submission.shortlink))
+    log.info("Flair choices: {}".format(submission.flair.choices()))  # TODO: look and remove
+
+    # Add full text comment
+    if text_too_long:
+        # Reddit formatting
+        reddit_text = post.text.replace("\r\n\r\n", "\n\n>")
+        reddit_text = reddit_text.replace("\r\n", "  \n")
+        comment_body = "Full text:  \n>" + reddit_text
+        submission.reply(comment_body)
+        log.info("Text too long. Added to comment.")
 
 
 def add_to_processed_posts(post):
@@ -112,7 +165,8 @@ if __name__ == '__main__':
 
     for post in new_posts:
         log.info(post)
-        if len(post.images) > 0:
+        url = post.link
+        if url is None and len(post.images) > 0:
             url = upload_to_imgur(post)
         post_to_reddit(post, url)
         if not test_mode:
