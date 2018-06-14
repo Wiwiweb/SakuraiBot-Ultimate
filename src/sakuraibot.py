@@ -21,18 +21,19 @@ processed_posts = None
 
 
 def bot_loop():
-    all_posts = get_all_blog_posts()
-    new_posts = find_new_posts(all_posts)
+    while True:
+        all_posts = get_all_blog_posts()
+        new_posts = find_new_posts(all_posts)
 
-    for post in new_posts:
-        log.info(post)
-        url = post.link
-        if url is None and len(post.images) > 0:
-            url = upload_to_imgur(post)
-        post_to_reddit(post, url)
-        add_to_processed_posts(post)
+        for post in new_posts:
+            log.info(post)
+            url = post.link
+            if url is None and len(post.images) > 0:
+                url = upload_to_imgur(post)
+            post_to_reddit(post, url)
+            add_to_processed_posts(post)
 
-    sleep(config['Sleep']['new_post_check'])
+        sleep(config['Sleep']['new_post_check'])
 
 
 def get_all_blog_posts():
