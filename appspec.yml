@@ -1,0 +1,15 @@
+version: 0.0
+os: linux
+files:
+  - source: /
+    destination: /home/ec2-user/SakuraiBot-Ultimate
+hooks:
+  AfterInstall:
+    - location: scripts/requirements-ec2.sh
+      timeout: 300
+  ApplicationStart:
+    - location: scripts/start-ec2.sh
+      timeout: 60
+  ValidateService:
+    - location: scripts/validate-ec2.sh
+      timeout: 180
