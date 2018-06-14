@@ -152,9 +152,8 @@ def post_to_reddit(post, url):
         text_too_long = True
 
     selftext = '' if url is None else None
-    submission = subreddit.submit(title=title, url=url, selftext=selftext)
+    submission = subreddit.submit(title=title, url=url, selftext=selftext, flair_id=config[reddit_config]['flair_id'])
     log.info("Created reddit post: {}".format(submission.shortlink))
-    log.info("Flair choices: {}".format(submission.flair.choices()))  # TODO: look and remove
 
     # Add full text comment
     if text_too_long:
