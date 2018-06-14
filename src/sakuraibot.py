@@ -21,6 +21,8 @@ processed_posts = None
 
 
 def bot_loop():
+    sleep_time = int(config['Sleep']['new_post_check'])
+
     while True:
         all_posts = get_all_blog_posts()
         new_posts = find_new_posts(all_posts)
@@ -33,7 +35,7 @@ def bot_loop():
             post_to_reddit(post, url)
             add_to_processed_posts(post)
 
-        sleep(config['Sleep']['new_post_check'])
+        sleep(sleep_time)
 
 
 def get_all_blog_posts():
@@ -46,7 +48,7 @@ def get_all_blog_posts():
         text = post_json['acf']['editor']\
 
         # Strip HTML
-        soup = BeautifulSoup(text, 'html5lib')
+        soup = BeautifulSoup(text, 'html.parser')
         text = soup.get_text()
 
         images = []
@@ -74,7 +76,8 @@ def find_new_posts(all_posts):
 
 
 def read_processed_posts_file():
-    postf = open(config['Files']['processed_posts'], 'r')
+    processed_post = 'processed_posts_test' if test_mode else 'processed_posts'
+    postf = open(config['Files'][processed_post], 'r')
     lines = postf.read().splitlines()
     postf.close()
     return set(lines)
@@ -169,7 +172,7 @@ def add_to_processed_posts(post):
     processed_posts.add(post.title)
 
     # Add to file
-    processed_post = 'processed_post_test' if test_mode else 'processed_post'
+    processed_post = 'processed_posts_test' if test_mode else 'processed_posts'
     postf = open(config['Files'][processed_post], 'a+')
     postf.seek(0)
     postf.write("\n{}".format(post.title))
@@ -178,4 +181,9 @@ def add_to_processed_posts(post):
 
 if __name__ == '__main__':
     log.info('=== Starting SakuraiBot-Ultimate ===')
+
+    # Create file if it doesn't exist
+    processed_post = 'processed_posts_test' if test_mode else 'processed_posts'
+    open(config['Files'][processed_post], 'a').close()
+
     bot_loop()
