@@ -1,5 +1,6 @@
 from collections import namedtuple
 from datetime import datetime
+from time import sleep
 
 import praw
 import requests
@@ -17,6 +18,21 @@ USER_AGENT = "SakuraiBotUltimate by /u/Wiwiweb for /r/smashbros"
 Post = namedtuple('Post', 'title date text images link')
 
 processed_posts = None
+
+
+def bot_loop():
+    all_posts = get_all_blog_posts()
+    new_posts = find_new_posts(all_posts)
+
+    for post in new_posts:
+        log.info(post)
+        url = post.link
+        if url is None and len(post.images) > 0:
+            url = upload_to_imgur(post)
+        post_to_reddit(post, url)
+        add_to_processed_posts(post)
+
+    sleep(config['Sleep']['new_post_check'])
 
 
 def get_all_blog_posts():
@@ -152,7 +168,8 @@ def add_to_processed_posts(post):
     processed_posts.add(post.title)
 
     # Add to file
-    postf = open(config['Files']['processed_posts'], 'a+')
+    processed_post = 'processed_post_test' if test_mode else 'processed_post'
+    postf = open(config['Files'][processed_post], 'a+')
     postf.seek(0)
     postf.write("\n{}".format(post.title))
     postf.close()
@@ -160,14 +177,4 @@ def add_to_processed_posts(post):
 
 if __name__ == '__main__':
     log.info('=== Starting SakuraiBot-Ultimate ===')
-    all_posts = get_all_blog_posts()
-    new_posts = find_new_posts(all_posts)
-
-    for post in new_posts:
-        log.info(post)
-        url = post.link
-        if url is None and len(post.images) > 0:
-            url = upload_to_imgur(post)
-        post_to_reddit(post, url)
-        if not test_mode:
-            add_to_processed_posts(post)
+    bot_loop()
