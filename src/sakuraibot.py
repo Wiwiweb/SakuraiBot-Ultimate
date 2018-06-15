@@ -22,9 +22,13 @@ processed_posts = None
 
 def bot_loop():
     sleep_time = int(config['Sleep']['new_post_check'])
+    error_sleep_time = int(config['Sleep']['error'])
 
     while True:
         all_posts = get_all_blog_posts()
+        if all_posts is None:
+            sleep(error_sleep_time)
+            continue
         new_posts = find_new_posts(all_posts)
 
         for post in new_posts:
@@ -39,29 +43,33 @@ def bot_loop():
 
 
 def get_all_blog_posts():
-    req = requests.get(SMASH_BLOG_JSON)
-    posts_json = req.json()
-    posts = {}
-    for post_json in posts_json:
-        title = post_json['title']['rendered']
-        date = post_json['date_gmt']
-        text = post_json['acf']['editor']\
+    try:
+        req = requests.get(SMASH_BLOG_JSON)
+        posts_json = req.json()
+        posts = {}
+        for post_json in posts_json:
+            title = post_json['title']['rendered']
+            date = post_json['date_gmt']
+            text = post_json['acf']['editor']\
 
-        # Strip HTML
-        soup = BeautifulSoup(text, 'html.parser')
-        text = soup.get_text()
+            # Strip HTML
+            soup = BeautifulSoup(text, 'html.parser')
+            text = soup.get_text()
 
-        images = []
-        for i in range(1, 5):
-            image_url = post_json['acf']['image{}'.format(i)]['url']
-            if image_url is not None:
-                image_url = 'https://www.smashbros.com/{}'.format(image_url[7:])
-                images.append(image_url)
-        link = post_json['acf']['link_url']
-        if link is '':
-            link = None
-        posts[title] = Post(title=title, date=date, text=text, images=images, link=link)
-    return posts
+            images = []
+            for i in range(1, 5):
+                image_url = post_json['acf']['image{}'.format(i)]['url']
+                if image_url is not None:
+                    image_url = 'https://www.smashbros.com/{}'.format(image_url[7:])
+                    images.append(image_url)
+            link = post_json['acf']['link_url']
+            if link is '':
+                link = None
+            posts[title] = Post(title=title, date=date, text=text, images=images, link=link)
+        return posts
+    except requests.HTTPError as e:
+        log.error(e)
+        return None
 
 
 def find_new_posts(all_posts):
@@ -172,7 +180,7 @@ def add_to_processed_posts(post):
 
     # Add to file
     processed_post = 'processed_posts_test' if test_mode else 'processed_posts'
-    postf = open(config['Files'][processed_post], 'a+')
+    postf = open(config['Files'][processed_post], 'a+', encoding='utf-8')
     postf.seek(0)
     postf.write("\n{}".format(post.title))
     postf.close()
