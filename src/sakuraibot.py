@@ -1,5 +1,5 @@
 from collections import namedtuple
-from datetime import datetime
+from datetime import datetime, timedelta
 from time import sleep
 
 import praw
@@ -140,7 +140,8 @@ def post_to_reddit(post, image_url):
 
     text = '"' + post.text + '"'
     date = datetime.strptime(post.date, '%Y/%m/%d %H:%M:%S')
-    date_string = date.strftime('%m/%d')
+    us_date = date - timedelta(hours=8)  # Copies the behaviour of the smash blog
+    date_string = us_date.strftime('%d/%m')
     title_format = "New Smash Blog Post! ({}) {}"
     title = title_format.format(date_string, text)
     text_too_long = False
