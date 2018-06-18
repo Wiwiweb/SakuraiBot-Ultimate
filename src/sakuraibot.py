@@ -85,7 +85,7 @@ def find_new_posts(all_posts):
 
 def read_processed_posts_file():
     processed_post = 'processed_posts_test' if test_mode else 'processed_posts'
-    postf = open(config['Files'][processed_post], 'r')
+    postf = open(config['Files'][processed_post], 'r', encoding='utf-8')
     lines = postf.read().splitlines()
     postf.close()
     return set(lines)
