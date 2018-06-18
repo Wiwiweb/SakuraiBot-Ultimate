@@ -33,10 +33,10 @@ def bot_loop():
 
         for post in new_posts:
             log.info(post)
-            url = post.link
-            if url is None and len(post.images) > 0:
-                url = upload_to_imgur(post)
-            post_to_reddit(post, url)
+            image_url = None
+            if len(post.images) > 0:
+                image_url = upload_to_imgur(post)
+            post_to_reddit(post, image_url)
             add_to_processed_posts(post)
 
         sleep(sleep_time)
@@ -50,7 +50,7 @@ def get_all_blog_posts():
         for post_json in posts_json:
             title = post_json['title']['rendered']
             date = post_json['date_gmt']
-            text = post_json['acf']['editor']\
+            text = post_json['acf']['editor']
 
             # Strip HTML
             soup = BeautifulSoup(text, 'html.parser')
@@ -128,7 +128,7 @@ def upload_to_imgur(post):
         return url
 
 
-def post_to_reddit(post, url):
+def post_to_reddit(post, image_url):
     reddit_config = 'Reddit_test' if test_mode else 'Reddit'
     reddit = praw.Reddit(client_id=config['Secrets']['reddit_client_id'],
                          client_secret=config['Secrets']['reddit_client_secret'],
@@ -138,7 +138,7 @@ def post_to_reddit(post, url):
 
     subreddit = reddit.subreddit(config[reddit_config]['subreddit'])
 
-    text = post.text
+    text = '"' + post.text + '"'
     date = datetime.strptime(post.date, '%Y/%m/%d %H:%M:%S')
     date_string = date.strftime('%m/%d')
     title_format = "New Smash Blog Post! ({}) {}"
@@ -154,23 +154,37 @@ def post_to_reddit(post, url):
             - (len(title) - REDDIT_TITLE_LIMIT) \
             - len(too_long)
         while len(text) > allowed_text_length:
-            text = text.rsplit(' ', 1)[0] # Remove last word
+            text = text.rsplit(' ', 1)[0]  # Remove last word
         text += too_long
         title = title_format.format(date_string, text)
         text_too_long = True
 
-    selftext = '' if url is None else None
+    selftext = '' if image_url is None else None
+    url = image_url if post.link is None else post.link
     submission = subreddit.submit(title=title, url=url, selftext=selftext, flair_id=config[reddit_config]['flair_id'])
     log.info("Created reddit post: {}".format(submission.shortlink))
 
-    # Add full text comment
+    # Comment
+    comment_format = '{full_text}\n\n' \
+                     '{bonus_pictures}\n\n' \
+                     '[Super Smash Blog](https://www.smashbros.com/en_US/blog/index.html)'
+
+    full_text = ''
     if text_too_long:
         # Reddit formatting
         reddit_text = post.text.replace("\r\n\r\n", "\n\n>")
         reddit_text = reddit_text.replace("\r\n", "  \n")
         comment_body = "Full text:  \n>" + reddit_text
-        submission.reply(comment_body)
         log.info("Text too long. Added to comment.")
+
+    bonus_pictures = ''
+    # Show bonus pictures only when they were not the main link
+    if post.link is not None and image_url is not None:
+        bonus_pictures = "[Bonus pics!]({})".format(image_url)
+        log.info("Bonus pics. Added to comment.")
+
+    comment_body = comment_format.format(full_text, bonus_pictures)
+    submission.reply(comment_body)
 
 
 def add_to_processed_posts(post):
