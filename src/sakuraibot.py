@@ -67,7 +67,7 @@ def get_all_blog_posts():
                 link = None
             posts[title] = Post(title=title, date=date, text=text, images=images, link=link)
         return posts
-    except requests.HTTPError as e:
+    except (requests.HTTPError, requests.ConnectionError) as e:
         log.error(e)
         return None
 
