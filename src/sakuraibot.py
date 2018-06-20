@@ -9,13 +9,14 @@ from bs4 import BeautifulSoup
 from globals import config, log, test_mode
 
 SMASH_BLOG_JSON = 'https://www.smashbros.com/data/bs/en_US/json/en_US.json'
+LINKS_PREFIX = 'https://www.smashbros.com'
 IMGUR_UPLOAD_API = 'https://api.imgur.com/3/image'
 IMGUR_CREATE_ALBUM_API = 'https://api.imgur.com/3/album'
 REDDIT_TITLE_LIMIT = 300
 
 USER_AGENT = "SakuraiBotUltimate by /u/Wiwiweb for /r/smashbros"
 
-Post = namedtuple('Post', 'title date text images link')
+Post = namedtuple('Post', 'title date text images link bonus_links')
 
 processed_posts = None
 
@@ -27,6 +28,7 @@ def bot_loop():
     while True:
         all_posts = get_all_blog_posts()
         if all_posts is None:
+            # There was an error getting the blog posts
             sleep(error_sleep_time)
             continue
         new_posts = find_new_posts(all_posts)
@@ -48,28 +50,47 @@ def get_all_blog_posts():
         posts_json = req.json()
         posts = {}
         for post_json in posts_json:
+
             title = post_json['title']['rendered']
             date = post_json['date_gmt']
             text = post_json['acf']['editor']
-
-            # Strip HTML
-            soup = BeautifulSoup(text, 'html.parser')
-            text = soup.get_text()
+            link = post_json['acf']['link_url']
+            if link is '':
+                link = None
 
             images = []
             for i in range(1, 5):
                 image_url = post_json['acf']['image{}'.format(i)]['url']
                 if image_url is not None:
-                    image_url = 'https://www.smashbros.com/{}'.format(image_url[7:])
+                    image_url = LINKS_PREFIX + image_url[7:]
                     images.append(image_url)
-            link = post_json['acf']['link_url']
-            if link is '':
-                link = None
-            posts[title] = Post(title=title, date=date, text=text, images=images, link=link)
+
+            # Find links in text
+            bonus_links = {}
+            soup = BeautifulSoup(text, 'html.parser')
+            a_tags = soup.find_all('a')
+            a_tags = [a_tag.extract() for a_tag in a_tags]
+            if len(a_tags) == 1 and link is None and len(images) == 0:
+                # Make this link found in text the main link
+                link = format_link(a_tags[0]['href'])
+            elif len(a_tags) > 0:
+                bonus_links = {a_tag.text: format_link(a_tag['href']) for a_tag in a_tags}
+
+            # Strip other HTML
+            text = soup.text
+
+            posts[title] = Post(title=title, date=date, text=text, images=images, link=link, bonus_links=bonus_links)
         return posts
     except (requests.HTTPError, requests.ConnectionError) as e:
         log.error(e)
         return None
+
+
+def format_link(link):
+    if link[0] is '/':  # Relative link
+        return LINKS_PREFIX + link
+    else:  # Absolute link
+        return link
 
 
 def find_new_posts(all_posts):
@@ -160,13 +181,15 @@ def post_to_reddit(post, image_url):
         title = title_format.format(date_string, text)
         text_too_long = True
 
-    selftext = '' if image_url is None else None
     url = image_url if post.link is None else post.link
-    submission = subreddit.submit(title=title, url=url, selftext=selftext, flair_id=config[reddit_config]['flair_id'])
+    selftext = '' if url is None else None
+    submission = subreddit.submit(title=title, url=url, selftext=selftext,
+                                  flair_id=config[reddit_config]['flair_id'], resubmit=True)
     log.info("Created reddit post: {}".format(submission.shortlink))
 
     # Comment
     comment_format = '{full_text}\n\n' \
+                     '{bonus_links}\n\n' \
                      '{bonus_pictures}\n\n' \
                      '[Super Smash Blog](https://www.smashbros.com/en_US/blog/index.html)'
 
@@ -178,13 +201,20 @@ def post_to_reddit(post, image_url):
         full_text = "Full text:  \n>" + reddit_text
         log.info("Text too long. Added to comment.")
 
+    bonus_links = ''
+    if len(post.bonus_links) > 0:
+        bonus_links = 'Links from this post:  \n'
+        for text, url in post.bonus_links.items():
+            bonus_links += "[{}]({})  \n".format(text, url)
+            log.info("Bonus links. Added to comment.")
+
     bonus_pictures = ''
     # Show bonus pictures only when they were not the main link
     if post.link is not None and image_url is not None:
         bonus_pictures = "[Bonus pics!]({})".format(image_url)
         log.info("Bonus pics. Added to comment.")
 
-    comment_body = comment_format.format(full_text=full_text, bonus_pictures=bonus_pictures)
+    comment_body = comment_format.format(full_text=full_text, bonus_links=bonus_links, bonus_pictures=bonus_pictures)
     submission.reply(comment_body)
 
 
