@@ -159,7 +159,7 @@ def post_to_reddit(post, image_url):
 
     subreddit = reddit.subreddit(config[reddit_config]['subreddit'])
 
-    text = '"' + post.text + '"'
+    text = '"' + post.text.strip().replace('\n', ' - ') + '"'
     date = datetime.strptime(post.date, '%Y/%m/%d %H:%M:%S')
     us_date = date - timedelta(hours=8)  # Copies the behaviour of the smash blog
     date_string = us_date.strftime('%m/%d').lstrip('0')
