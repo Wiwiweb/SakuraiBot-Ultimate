@@ -203,7 +203,8 @@ def post_to_reddit(post, image_url):
 
     bonus_links = ''
     if len(post.bonus_links) > 0:
-        bonus_links = 'Links from this post:  \n'
+        plural = 's' if len(post.bonus_links) > 1 else ''
+        bonus_links = 'Link{} from this post:  \n'.format(plural)
         for text, url in post.bonus_links.items():
             bonus_links += "[{}]({})  \n".format(text, url)
             log.info("Bonus links. Added to comment.")
@@ -211,7 +212,8 @@ def post_to_reddit(post, image_url):
     bonus_pictures = ''
     # Show bonus pictures only when they were not the main link
     if post.link is not None and image_url is not None:
-        bonus_pictures = "[Bonus pics!]({})".format(image_url)
+        plural = 's' if len(post.images) > 1 else ''
+        bonus_pictures = "[Bonus pic{}!]({})".format(plural, image_url)
         log.info("Bonus pics. Added to comment.")
 
     comment_body = comment_format.format(full_text=full_text, bonus_links=bonus_links, bonus_pictures=bonus_pictures)
