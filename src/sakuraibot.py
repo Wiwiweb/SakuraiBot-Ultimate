@@ -9,7 +9,10 @@ from bs4 import BeautifulSoup
 from globals import config, log, test_mode
 
 SMASH_BLOG_JSON = 'https://www.smashbros.com/data/bs/en_US/json/en_US.json'
+SMASH_MUSIC_PAGE = 'https://www.smashbros.com/en_US/sound/index.html'
+SMASH_MUSIC_JSON = 'https://www.smashbros.com/assets_v2/data/sound.json'
 LINKS_PREFIX = 'https://www.smashbros.com'
+YOUTUBE_PREFIX = 'https://www.youtube.com/watch?v='
 IMGUR_UPLOAD_API = 'https://api.imgur.com/3/image'
 IMGUR_CREATE_ALBUM_API = 'https://api.imgur.com/3/album'
 REDDIT_TITLE_LIMIT = 300
@@ -76,6 +79,9 @@ def get_all_blog_posts():
             elif len(a_tags) > 0:
                 bonus_links = {a_tag.text: format_link(a_tag['href']) for a_tag in a_tags}
 
+            if link == SMASH_MUSIC_PAGE:
+                link = fetch_last_music_youtube()
+
             # Strip other HTML
             text = soup.text
 
@@ -91,6 +97,17 @@ def format_link(link):
         return LINKS_PREFIX + link
     else:  # Absolute link
         return link
+
+
+def fetch_last_music_youtube():
+    try:
+        req = requests.get(SMASH_MUSIC_JSON)
+        full_json = req.json()
+        youtube_id = full_json['sound'][0]['youtubeID']
+        return YOUTUBE_PREFIX + youtube_id
+    except (requests.HTTPError, requests.ConnectionError) as e:
+        log.error(e)
+        return SMASH_MUSIC_PAGE
 
 
 def find_new_posts(all_posts):
