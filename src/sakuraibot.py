@@ -179,7 +179,7 @@ def post_to_reddit(post, image_url):
     text = '"' + post.text.strip().replace('\n', ' - ') + '"'
     date = datetime.strptime(post.date, '%Y/%m/%d %H:%M:%S')
     us_date = date - timedelta(hours=8)  # Copies the behaviour of the smash blog
-    date_string = us_date.strftime('%m/%d').lstrip('0')
+    date_string = "{}/{}/{}".format(us_date.strftime('%m').lstrip('0'), us_date.strftime('%d').lstrip('0'), us_date.strftime('%Y'))
     title_format = "New Smash Blog Post! ({}) {}"
     title = title_format.format(date_string, text)
     text_too_long = False
