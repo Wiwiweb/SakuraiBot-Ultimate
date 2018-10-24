@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from time import sleep
 
 import praw
+import prawcore.exceptions
 import requests
 from bs4 import BeautifulSoup
 
@@ -41,7 +42,14 @@ def bot_loop():
             image_url = None
             if len(post.images) > 0:
                 image_url = upload_to_imgur(post)
-            post_to_reddit(post, image_url)
+            try:
+                post_to_reddit(post, image_url)
+            except prawcore.exceptions.ResponseException as e:
+                log.error(e)
+                if 500 <= e.response.status_code <= 504:
+                    continue
+                else:
+                    raise e
             add_to_processed_posts(post)
 
         sleep(sleep_time)
