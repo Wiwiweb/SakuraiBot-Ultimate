@@ -43,7 +43,7 @@ if not config['Secrets']['imgur_client_id']:
     try:
         ssm = boto3.client('ssm', region_name=config['AWS']['region'])
         secrets = ['imgur_client_id', 'imgur_access_token',
-                   'reddit_client_id', 'reddit_client_secret', 'reddit_password']
+                   'reddit_client_id', 'reddit_client_secret', 'reddit_password', 'reddit_main_account_password']
         response = ssm.get_parameters(Names=secrets, WithDecryption=True)
         for parameter in response['Parameters']:
             config.set('Secrets', parameter['Name'], parameter['Value'])

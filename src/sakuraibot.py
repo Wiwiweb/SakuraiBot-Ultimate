@@ -245,7 +245,24 @@ def post_to_reddit(post, image_url):
         log.info("Bonus pics. Added to comment.")
 
     comment_body = comment_format.format(full_text=full_text, bonus_links=bonus_links, bonus_pictures=bonus_pictures)
-    submission.reply(comment_body)
+    comment_id = submission.reply(comment_body).id
+
+    reddit_main_account = praw.Reddit(client_id=config['Secrets']['reddit_client_id'],
+                                      client_secret=config['Secrets']['reddit_client_secret'],
+                                      username='Wiwiweb',
+                                      password=config['Secrets']['reddit_main_account_password'],
+                                      user_agent=USER_AGENT)
+
+
+    bot_comment = reddit_main_account.comment(id=comment_id)
+    message = "I'm piggybacking this hypest of blog posts to talk a bit about the bot!\n\n" \
+              "It's the reaction of this subreddit to Smash 4's SakuraiBot 5 years ago that made me want to revive it for this new Smash. I especially loved [this sad tribute](https://www.youtube.com/watch?v=fnCvpZYMYm0), made my day :D  \n" \
+              "All I needed was a new source of periodic updates... And as soon as Papa Sakurai provided, several people PM'd me \"There's blog posts! Revive SakuraiBot!\" And so SakuraiBot bot rose again!\n\n" \
+              "If you're curious about how SakuraiBot works, [check out the Python code on GitHub!](https://github.com/Wiwiweb/SakuraiBot-Ultimate)  \n" \
+              "Unlike its Smash 4 older brother, SakuraiBot-Ultimate is fairly simple and only took a couple days of my time (No IRC integration or convoluted high quality picture selection :P)  \n" \
+              "If you enjoyed these threads and you have a GitHub account, leave the bot a star. Who knows, it might increase my chances of being hired on my next job hunt by 0.1% ;)"
+
+    bot_comment.reply(message)
 
 
 def add_to_processed_posts(post):
