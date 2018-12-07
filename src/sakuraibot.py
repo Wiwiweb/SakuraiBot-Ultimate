@@ -29,7 +29,8 @@ def bot_loop():
     sleep_time = int(config['Sleep']['new_post_check'])
     error_sleep_time = int(config['Sleep']['error'])
 
-    while True:
+    keep_looping = True
+    while keep_looping:
         all_posts = get_all_blog_posts()
         if all_posts is None:
             # There was an error getting the blog posts
@@ -37,7 +38,8 @@ def bot_loop():
             continue
         new_posts = find_new_posts(all_posts)
 
-        for post in new_posts:
+        if len(new_posts) > 0:
+            post = new_posts[0]
             log.info(post)
             image_url = None
             if len(post.images) > 0:
@@ -51,6 +53,7 @@ def bot_loop():
                 else:
                     raise e
             add_to_processed_posts(post)
+            keep_looping = False
 
         sleep(sleep_time)
 
