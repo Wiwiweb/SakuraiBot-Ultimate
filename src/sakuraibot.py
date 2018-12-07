@@ -216,7 +216,10 @@ def post_to_reddit(post, image_url):
     comment_format = '{full_text}\n\n' \
                      '{bonus_links}\n\n' \
                      '{bonus_pictures}\n\n' \
-                     '[Super Smash Blog](https://www.smashbros.com/en_US/blog/index.html)'
+                     '[Super Smash Blog](https://www.smashbros.com/en_US/blog/index.html)\n\n' \
+                     '---\n\n' \
+                     "#It's been a pleasure everyone! See you all for Smash 6!\n\n" \
+                     "^(Who am I kidding. With DLC, I'll have to stick around as long as blog posts continue. I wonder if I'll ever get to take a break 🤖)"
 
     full_text = ''
     if text_too_long:
